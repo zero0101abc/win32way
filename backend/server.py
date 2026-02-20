@@ -28,6 +28,116 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Headers", "X-Requested-With, Content-type")
         self.end_headers()
 
+    def do_POST(self):
+        if self.path == '/update-ticket':
+            content_length = int(self.headers['Content-Length'])
+            post_data = self.rfile.read(content_length)
+            updated_ticket = json.loads(post_data.decode('utf-8'))
+            
+            # 1. Load existing ticket.json
+            project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            ticket_path = os.path.join(project_root, "database", "ticket.json")
+            
+            with open(ticket_path, 'r', encoding='utf-8') as f:
+                tickets = json.load(f)
+                
+            # 2. Find and update the specific ticket
+            for i, ticket in enumerate(tickets):
+                if ticket['ticket_number'] == updated_ticket['ticket_number']:
+                    # Update all editable fields
+                    if 'solution' in updated_ticket:
+                        tickets[i]['solution'] = updated_ticket['solution']
+                    if 'resolve_time' in updated_ticket:
+                        tickets[i]['resolve_time'] = updated_ticket['resolve_time']
+                    if 'ph_rm_os' in updated_ticket:
+                        tickets[i]['ph_rm_os'] = updated_ticket['ph_rm_os']
+                    if 'fu_action' in updated_ticket:
+                        tickets[i]['fu_action'] = updated_ticket['fu_action']
+                    if 'problem' in updated_ticket:
+                        tickets[i]['problem'] = updated_ticket['problem']
+                    if 'handled_by' in updated_ticket:
+                        tickets[i]['handled_by'] = updated_ticket['handled_by']
+                    if 'status' in updated_ticket:
+                        tickets[i]['status'] = updated_ticket['status']
+                    break
+                    
+            # 3. Save back to file
+            with open(ticket_path, 'w', encoding='utf-8') as f:
+                json.dump(tickets, f, indent=2, ensure_ascii=False)
+                
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(json.dumps({"status": "success"}).encode('utf-8'))
+        elif self.path == '/add-ticket':
+            content_length = int(self.headers['Content-Length'])
+            post_data = self.rfile.read(content_length)
+            new_ticket = json.loads(post_data.decode('utf-8'))
+            
+            # 1. Load existing ticket.json
+            project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            ticket_path = os.path.join(project_root, "database", "ticket.json")
+            
+            with open(ticket_path, 'r', encoding='utf-8') as f:
+                tickets = json.load(f)
+                
+            # 2. Create new ticket with default values
+            ticket_number = new_ticket.get('ticket_number', '').strip()
+            if not ticket_number:
+                self.send_response(400)
+                self.send_header('Content-type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({"status": "error", "message": "Ticket number is required"}).encode('utf-8'))
+                return
+            
+            # Check if ticket already exists
+            for ticket in tickets:
+                if ticket['ticket_number'] == ticket_number:
+                    self.send_response(400)
+                    self.send_header('Content-type', 'application/json')
+                    self.send_header('Access-Control-Allow-Origin', '*')
+                    self.end_headers()
+                    self.wfile.write(json.dumps({"status": "error", "message": f"Ticket {ticket_number} already exists"}).encode('utf-8'))
+                    return
+            
+            # Create new ticket object
+            import datetime
+            now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+            
+            created_ticket = {
+                "ticket_number": ticket_number,
+                "shop": new_ticket.get('shop', '').strip() or '',
+                "description": new_ticket.get('description', '').strip() or '',
+                "date": new_ticket.get('date', '').strip() or now,
+                "problem": new_ticket.get('problem', '').strip() or '',
+                "resolve_time": new_ticket.get('resolve_time', '').strip() or '',
+                "ph_rm_os": new_ticket.get('ph_rm_os', '').strip() or '',
+                "solution": new_ticket.get('solution', '').strip() or '',
+                "fu_action": new_ticket.get('fu_action', '').strip() or '',
+                "handled_by": new_ticket.get('handled_by', 'USE_MISSING').strip() or 'USE_MISSING',
+                "status": new_ticket.get('status', 'in progress').strip() or 'in progress'
+            }
+            
+            # 3. Add to tickets array
+            tickets.append(created_ticket)
+            
+            # 4. Save back to file
+            with open(ticket_path, 'w', encoding='utf-8') as f:
+                json.dump(tickets, f, indent=2, ensure_ascii=False)
+                
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(json.dumps({"status": "success", "ticket": created_ticket}).encode('utf-8'))
+        else:
+            self.send_response(404)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({"status": "error", "message": "Endpoint not found"}).encode('utf-8'))
+
     def run_scan(self, script_name="test_quick.py"):
         print(f"Received request to scan emails using {script_name}...")
         try:

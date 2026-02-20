@@ -1,5 +1,18 @@
 [
   {
+    "ticket_number": "HK542381",
+    "shop": "cdc337",
+    "description": "電子餐倉第一和第二倉餐單要分開,詳情聯絡門店",
+    "date": "2026-02-20 12:26",
+    "problem": "",
+    "resolve_time": "",
+    "ph_rm_os": "",
+    "solution": "",
+    "fu_action": "",
+    "handled_by": "USE_MISSING",
+    "status": "in progress"
+  },
+  {
     "ticket_number": "HK542379",
     "shop": "cdc140",
     "description": "電子餐倉不會跳午市,時間也不正確",
