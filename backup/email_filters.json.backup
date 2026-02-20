@@ -1,0 +1,26 @@
+[
+    {
+        "id": 1,
+        "name": "cdc",
+        "from_email": "cdc_hk_itd@wtto.com",
+        "subject_filter": "",
+        "body_filter": "",
+        "to_email": "iSupport",
+        "action": "extract_cdc",
+        "description": "CDC notification filter",
+        "enabled": true,
+        "created_at": "2026-01-27 11:14:25.808310"
+    },
+    {
+        "id": 2,
+        "name": "mx",
+        "from_email": "system.MX@hkt-emsconnect.com",
+        "subject_filter": "contains(subject, \"has been assigned to\")",
+        "body_filter": "",
+        "to_email": "iSupport",
+        "action": "send_mx_alert",
+        "description": "MX system alert filter",
+        "enabled": true,
+        "created_at": "2026-01-27 12:03:04.465924"
+    }
+]

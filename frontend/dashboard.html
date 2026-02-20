@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IT Ticket Dashboard</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        body { background-color: #f3f4f6; }
+        .card { transition: all 0.2s; }
+        .card:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+        .loading-spinner {
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top: 3px solid white;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        /* Table row hover and selection styles */
+        .table-row {
+            transition: all 0.15s;
+        }
+        .table-row:hover {
+            background-color: #f9fafb;
+        }
+        .table-row.selected {
+            background-color: #eff6ff;
+            border-left: 3px solid #3b82f6;
+        }
+        .table-row.selected:hover {
+            background-color: #dbeafe;
+        }
+        
+        /* Custom scrollbar for table */
+        .table-container::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        .table-container::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        .table-container::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        .table-container::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo, useRef } = React;
+
+        // Configuration constants
+        const PROBLEM_OPTIONS = [
+            "Windows OS Time/Bios Time/TV time issue",
+            "wrong order",
+            "network issue",
+            "hardware issue",
+            "software issue",
+            "shop using imean issue",
+            "tv/hdmi issue",
+            "pos sync issue",
+            "menuphoto issue",
+            "power issue"
+        ];
+
+        const HANDLER_OPTIONS = ["cc", "TW", "TS", "TC", "HA", "GL", "NT", "USE_MISSING"];
+
+        // Improved Icon component to prevent React DOM conflicts
+        const Icon = ({ name, className }) => {
+            const iconRef = useRef(null);
+
+            useEffect(() => {
+                if (iconRef.current && lucide.icons[name]) {
+                    const iconNode = lucide.icons[name];
+                    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                    
+                    svg.setAttribute('width', '24');
+                    svg.setAttribute('height', '24');
+                    svg.setAttribute('viewBox', '0 0 24 24');
+                    svg.setAttribute('fill', 'none');
+                    svg.setAttribute('stroke', 'currentColor');
+                    svg.setAttribute('stroke-width', '2');
+                    svg.setAttribute('stroke-linecap', 'round');
+                    svg.setAttribute('stroke-linejoin', 'round');
+                    
+                    if (className) svg.setAttribute('class', className);
+
+                    // Lucide icons are arrays of [tag, attrs]
+                    iconNode.forEach(([tag, attrs]) => {
+                        const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+                        Object.keys(attrs).forEach(key => el.setAttribute(key, attrs[key]));
+                        svg.appendChild(el);
+                    });
+                    
+                    iconRef.current.innerHTML = '';
+                    iconRef.current.appendChild(svg);
+                }
+            }, [name, className]);
+
+            return <span ref={iconRef} className="inline-flex items-center justify-center"></span>;
+        };
+
+        const MOCK_DATA = [];
+
+        const StatCard = ({ title, value, iconName, color }) => (
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center space-x-4">
+                <div className={`p-3 rounded-full ${color} bg-opacity-10`}>
+                    <Icon name={iconName} className={`w-6 h-6 ${color.replace('bg-', 'text-')}`} />
+                </div>
+                <div>
+                    <p className="text-sm text-gray-500 font-medium">{title}</p>
+                    <h3 className="text-2xl font-bold text-gray-800">{value}</h3>
+                </div>
+            </div>
+        );
+
+        const TicketCard = ({ email }) => {
+            const ticketNumber = email.ticket_number || email.extracted_data?.ticket_number || "No ID";
+            const shop = email.shop || email.extracted_data?.shop || "N/A";
+            const description = email.description || email.extracted_data?.description || email.subject || "No Description";
+            const dateStr = email.date || email.received_time;
+            const sender = email.sender || "Unknown Sender";
+
+            const isMX = ticketNumber.startsWith('BZ');
+            const typeColor = isMX ? 'bg-blue-50 text-blue-700 border-blue-100' : 'bg-orange-50 text-orange-700 border-orange-100';
+            const typeLabel = isMX ? 'MX System' : 'CDC Ticket';
+
+            return (
+                <div className="bg-white rounded-lg p-5 border border-gray-200 shadow-sm card hover:border-blue-300">
+                    <div className="flex justify-between items-start mb-3">
+                        <span className={`px-2 py-1 rounded-md text-xs font-bold border ${typeColor}`}>
+                            {typeLabel}
+                        </span>
+                        <span className="text-xs text-gray-400 flex items-center">
+                            <Icon name="clock" className="w-3 h-3 mr-1" />
+                            {dateStr ? new Date(dateStr).toLocaleDateString() : 'N/A'}
+                        </span>
+                    </div>
+
+                    <h4 className="font-bold text-lg text-gray-800 mb-1 flex items-center">
+                        <Icon name="hash" className="w-4 h-4 mr-1 text-gray-400" />
+                        {ticketNumber}
+                    </h4>
+
+                    <div className="flex items-center text-sm text-gray-600 mb-3">
+                        <Icon name="building-2" className="w-4 h-4 mr-1" />
+                        Shop: <span className="font-medium ml-1">{shop}</span>
+                    </div>
+
+                    <div className="bg-gray-50 p-3 rounded-md border border-gray-100 mb-3">
+                        <p className="text-sm text-gray-700 line-clamp-2">
+                            {description}
+                        </p>
+                    </div>
+
+                    <div className="flex justify-between items-center text-xs text-gray-400 border-t pt-3">
+                        <span className="truncate max-w-[150px]" title={sender}>{sender}</span>
+                        <span className="text-gray-500">JSON</span>
+                    </div>
+                </div>
+            );
+        };
+
+        // Table View Components
+        const TableView = ({ tickets, selectedRows, onRowSelect, onRowClick, onUpdateTicket, sortColumn, sortDirection, onSort }) => {
+            const handleCheckboxChange = (index, e) => {
+                e.stopPropagation();
+                onRowSelect(index);
+            };
+
+            const handleSelectAll = (e) => {
+                if (e.target.checked) {
+                    onRowSelect('all');
+                } else {
+                    onRowSelect('none');
+                }
+            };
+
+            const handleColumnSort = (column) => {
+                onSort(column);
+            };
+
+            const SortIcon = ({ column }) => {
+                if (sortColumn !== column) return <Icon name="arrow-up-down" className="w-3 h-3 ml-1 text-gray-400" />;
+                return sortDirection === 'asc' 
+                    ? <Icon name="arrow-up" className="w-3 h-3 ml-1 text-blue-600" />
+                    : <Icon name="arrow-down" className="w-3 h-3 ml-1 text-blue-600" />;
+            };
+
+            return (
+                <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                    <div className="table-container overflow-x-auto">
+                        <table className="w-full">
+                            <thead className="bg-gray-50 border-b border-gray-200">
+                                <tr>
+                                    <th className="px-4 py-3 text-left">
+                                        <input 
+                                            type="checkbox" 
+                                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                            checked={selectedRows.length === tickets.length && tickets.length > 0}
+                                            onChange={handleSelectAll}
+                                        />
+                                    </th>
+                                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onClick={() => handleColumnSort('ticket_number')}>
+                                        <div className="flex items-center">Ticket # <SortIcon column="ticket_number" /></div>
+                                    </th>
+                                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onClick={() => handleColumnSort('shop')}>
+                                        <div className="flex items-center">Shop <SortIcon column="shop" /></div>
+                                    </th>
+                                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onClick={() => handleColumnSort('description')}>
+                                        <div className="flex items-center">Description <SortIcon column="description" /></div>
+                                    </th>
+                                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onClick={() => handleColumnSort('date')}>
+                                        <div className="flex items-center">Date <SortIcon column="date" /></div>
+                                    </th>
+                                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Problem</th>
+                                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Resolve Time</th>
+                                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">PH/RM/OS</th>
+                                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Solution</th>
+                                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">F/U Action</th>
+                                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Handled By</th>
+                                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onClick={() => handleColumnSort('status')}>
+                                        <div className="flex items-center">Status <SortIcon column="status" /></div>
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-200">
+                                {tickets.map((ticket, index) => (
+                                    <TableRow 
+                                        key={index}
+                                        ticket={ticket}
+                                        index={index}
+                                        isSelected={selectedRows.includes(index)}
+                                        onCheckboxChange={handleCheckboxChange}
+                                        onRowClick={onRowClick}
+                                        onUpdateTicket={onUpdateTicket}
+                                    />
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            );
+        };
+
+        const TableRow = ({ ticket, index, isSelected, onCheckboxChange, onRowClick, onUpdateTicket }) => {
+            const handleFieldUpdate = (field, value, e) => {
+                e.stopPropagation();
+                onUpdateTicket(index, field, value);
+            };
+
+            return (
+                <tr 
+                    className={`table-row cursor-pointer ${isSelected ? 'selected' : ''}`}
+                    onClick={() => onRowClick(index)}
+                >
+                    <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                        <input 
+                            type="checkbox" 
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            checked={isSelected}
+                            onChange={(e) => onCheckboxChange(index, e)}
+                        />
+                    </td>
+                    <td className="px-4 py-3 text-sm font-medium text-gray-900">{ticket.ticket_number}</td>
+                    <td className="px-4 py-3 text-sm text-gray-700">{ticket.shop}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600 max-w-xs truncate" title={ticket.description}>{ticket.description}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{ticket.date}</td>
+                    <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                        <select 
+                            className="text-xs border border-gray-300 rounded px-2 py-1 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                            value={ticket.problem || ''}
+                            onChange={(e) => handleFieldUpdate('problem', e.target.value, e)}
+                        >
+                            <option value="">Select...</option>
+                            {PROBLEM_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                        </select>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-500">{ticket.resolve_time || '-'}</td>
+                    <td className="px-4 py-3 text-sm text-gray-500">{ticket.ph_rm_os || '-'}</td>
+                    <td className="px-4 py-3 text-sm text-gray-500 max-w-xs truncate" title={ticket.solution}>{ticket.solution || '-'}</td>
+                    <td className="px-4 py-3 text-sm text-gray-500">{ticket.fu_action || '-'}</td>
+                    <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                        <select 
+                            className="text-xs border border-gray-300 rounded px-2 py-1 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                            value={ticket.handled_by || 'USE_MISSING'}
+                            onChange={(e) => handleFieldUpdate('handled_by', e.target.value, e)}
+                        >
+                            {HANDLER_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                        </select>
+                    </td>
+                    <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                        <button
+                            className={`text-xs px-3 py-1 rounded-full font-medium ${
+                                ticket.status === 'completed' 
+                                    ? 'bg-green-100 text-green-700 hover:bg-green-200' 
+                                    : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
+                            }`}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                handleFieldUpdate('status', ticket.status === 'completed' ? 'in progress' : 'completed', e);
+                            }}
+                        >
+                            {ticket.status || 'in progress'}
+                        </button>
+                    </td>
+                </tr>
+            );
+        };
+
+        // Detail Modal
+        const DetailModal = ({ ticket, onClose, onUpdate }) => {
+            const [editedTicket, setEditedTicket] = useState({...ticket});
+
+            const handleSave = () => {
+                onUpdate(editedTicket);
+                onClose();
+            };
+
+            const handleChange = (field, value) => {
+                setEditedTicket(prev => ({ ...prev, [field]: value }));
+            };
+
+            return (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+                    <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+                        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
+                            <h2 className="text-xl font-bold text-gray-900">Ticket Details</h2>
+                            <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+                                <Icon name="x" className="w-6 h-6" />
+                            </button>
+                        </div>
+
+                        <div className="p-6 space-y-4">
+                            {/* Read-only fields */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Ticket Number</label>
+                                    <input type="text" value={editedTicket.ticket_number} disabled className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Shop</label>
+                                    <input type="text" value={editedTicket.shop} disabled className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600" />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                                <textarea value={editedTicket.description} disabled className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600 h-20" />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                                <input type="text" value={editedTicket.date} disabled className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600" />
+                            </div>
+
+                            {/* Editable fields */}
+                            <div className="border-t pt-4">
+                                <h3 className="text-lg font-semibold text-gray-800 mb-3">Editable Information</h3>
+                                
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Problem</label>
+                                        <select 
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                            value={editedTicket.problem || ''}
+                                            onChange={(e) => handleChange('problem', e.target.value)}
+                                        >
+                                            <option value="">Select problem type...</option>
+                                            {PROBLEM_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                        </select>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Handled By</label>
+                                        <select 
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                            value={editedTicket.handled_by || 'USE_MISSING'}
+                                            onChange={(e) => handleChange('handled_by', e.target.value)}
+                                        >
+                                            {HANDLER_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div className="mt-4">
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                                    <div className="flex gap-2">
+                                        <button
+                                            className={`px-4 py-2 rounded-lg font-medium transition ${
+                                                editedTicket.status === 'in progress'
+                                                    ? 'bg-yellow-500 text-white'
+                                                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                            }`}
+                                            onClick={() => handleChange('status', 'in progress')}
+                                        >
+                                            In Progress
+                                        </button>
+                                        <button
+                                            className={`px-4 py-2 rounded-lg font-medium transition ${
+                                                editedTicket.status === 'completed'
+                                                    ? 'bg-green-500 text-white'
+                                                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                            }`}
+                                            onClick={() => handleChange('status', 'completed')}
+                                        >
+                                            Completed
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4 mt-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Resolve Time <span className="text-gray-400">(WhatsApp - Coming Soon)</span></label>
+                                        <input type="text" value={editedTicket.resolve_time || ''} disabled className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-400" placeholder="Not available yet" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">PH/RM/OS <span className="text-gray-400">(WhatsApp - Coming Soon)</span></label>
+                                        <input type="text" value={editedTicket.ph_rm_os || ''} disabled className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-400" placeholder="Not available yet" />
+                                    </div>
+                                </div>
+
+                                <div className="mt-4">
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Solution <span className="text-gray-400">(WhatsApp - Coming Soon)</span></label>
+                                    <textarea value={editedTicket.solution || ''} disabled className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-400 h-20" placeholder="Not available yet" />
+                                </div>
+
+                                <div className="mt-4">
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">F/U Action <span className="text-gray-400">(WhatsApp - Coming Soon)</span></label>
+                                    <textarea value={editedTicket.fu_action || ''} disabled className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-400 h-20" placeholder="Not available yet" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-4 flex justify-end gap-3">
+                            <button onClick={onClose} className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 font-medium">
+                                Cancel
+                            </button>
+                            <button onClick={handleSave} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">
+                                Save Changes
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const App = () => {
+            const [emails, setEmails] = useState(MOCK_DATA);
+            const [searchTerm, setSearchTerm] = useState("");
+            const [filterType, setFilterType] = useState("all"); 
+            const [startDate, setStartDate] = useState("");
+            const [endDate, setEndDate] = useState("");
+            const [isScanning, setIsScanning] = useState(false);
+            const [stats, setStats] = useState({ total: 0, mx: 0, cdc: 0, extracted: 0 });
+            const [viewMode, setViewMode] = useState("card"); // "card" or "table"
+            const [selectedRows, setSelectedRows] = useState([]);
+            const [selectedTicketIndex, setSelectedTicketIndex] = useState(null);
+            const [sortColumn, setSortColumn] = useState('date');
+            const [sortDirection, setSortDirection] = useState('desc');
+
+            // Initialize tickets with default values
+            useEffect(() => {
+                const initializedEmails = emails.map(email => ({
+                    ...email,
+                    problem: email.problem || '',
+                    resolve_time: email.resolve_time || '',
+                    ph_rm_os: email.ph_rm_os || '',
+                    solution: email.solution || '',
+                    fu_action: email.fu_action || '',
+                    handled_by: email.handled_by || 'USE_MISSING',
+                    status: email.status || 'in progress'
+                }));
+                if (JSON.stringify(initializedEmails) !== JSON.stringify(emails)) {
+                    setEmails(initializedEmails);
+                }
+            }, []);
+
+            useEffect(() => {
+                const newStats = filteredEmails.reduce((acc, email) => {
+                    acc.total++;
+                    
+                    const ticket = email.ticket_number || email.extracted_data?.ticket_number || "";
+                    const shop = email.shop || email.extracted_data?.shop || "";
+                    if (ticket) acc.extracted++;
+                    
+                    if (ticket.startsWith('BZ')) acc.mx++;
+                    else if (ticket.startsWith('HK') || ticket.startsWith('CDC') || ticket.startsWith('IN') || shop.toLowerCase().startsWith('cdc')) acc.cdc++;
+                    
+                    return acc;
+                }, { total: 0, mx: 0, cdc: 0, extracted: 0 });
+                setStats(newStats);
+            }, [emails, searchTerm, filterType, startDate, endDate]);
+
+            const handleScan = async (scanAll = false) => {
+                setIsScanning(true);
+                try {
+                    const endpoint = scanAll ? 'http://localhost:8000/backend/test_all.py' : 'http://localhost:8000/backend/test.py';
+                    const response = await fetch(endpoint);
+                    const result = await response.json();
+                    
+                    if (result.status === 'success') {
+                        const initializedData = result.data.map(ticket => ({
+                            ...ticket,
+                            problem: ticket.problem || '',
+                            resolve_time: ticket.resolve_time || '',
+                            ph_rm_os: ticket.ph_rm_os || '',
+                            solution: ticket.solution || '',
+                            fu_action: ticket.fu_action || '',
+                            handled_by: ticket.handled_by || 'USE_MISSING',
+                            status: ticket.status || 'in progress'
+                        }));
+                        setEmails(initializedData);
+                        alert("Scan complete! Found " + result.data.length + " tickets.");
+                    } else {
+                        alert("Scan failed: " + result.message);
+                    }
+                } catch (error) {
+                    alert("Cannot connect to server. Please run 'python -m backend.server' from win32way folder first.");
+                } finally {
+                    setIsScanning(false);
+                }
+            };
+
+            const handleFileUpload = (event) => {
+                const file = event.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const json = JSON.parse(e.target.result);
+                        if (Array.isArray(json)) {
+                            const initializedData = json.map(ticket => ({
+                                ...ticket,
+                                problem: ticket.problem || '',
+                                resolve_time: ticket.resolve_time || '',
+                                ph_rm_os: ticket.ph_rm_os || '',
+                                solution: ticket.solution || '',
+                                fu_action: ticket.fu_action || '',
+                                handled_by: ticket.handled_by || 'USE_MISSING',
+                                status: ticket.status || 'in progress'
+                            }));
+                            setEmails(initializedData);
+                        }
+                        else alert("Invalid JSON format.");
+                    } catch (err) { alert("Error parsing JSON file"); }
+                };
+                reader.readAsText(file);
+            };
+
+            const handleExport = () => {
+                const dataToExport = viewMode === 'table' && selectedRows.length > 0
+                    ? selectedRows.map(index => filteredEmails[index])
+                    : filteredEmails;
+                
+                const dataStr = JSON.stringify(dataToExport, null, 4);
+                const blob = new Blob([dataStr], { type: "application/json" });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = "target_ticket.json";
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            };
+
+            const handleUpdateTicket = (index, field, value) => {
+                const emailIndex = emails.findIndex(e => e === filteredEmails[index]);
+                const updatedEmails = [...emails];
+                updatedEmails[emailIndex] = {
+                    ...updatedEmails[emailIndex],
+                    [field]: value
+                };
+                setEmails(updatedEmails);
+            };
+
+            const handleRowSelect = (index) => {
+                if (index === 'all') {
+                    setSelectedRows(filteredEmails.map((_, i) => i));
+                } else if (index === 'none') {
+                    setSelectedRows([]);
+                } else {
+                    setSelectedRows(prev => 
+                        prev.includes(index) 
+                            ? prev.filter(i => i !== index)
+                            : [...prev, index]
+                    );
+                }
+            };
+
+            const handleBulkDelete = () => {
+                if (selectedRows.length === 0) return;
+                if (!confirm(`Delete ${selectedRows.length} selected ticket(s)?`)) return;
+                
+                const ticketsToDelete = selectedRows.map(index => filteredEmails[index]);
+                const updatedEmails = emails.filter(email => !ticketsToDelete.includes(email));
+                setEmails(updatedEmails);
+                setSelectedRows([]);
+            };
+
+            const handleBulkStatusChange = () => {
+                if (selectedRows.length === 0) return;
+                const newStatus = confirm("Mark as Completed? (Cancel for In Progress)") ? 'completed' : 'in progress';
+                
+                const ticketsToUpdate = selectedRows.map(index => filteredEmails[index]);
+                const updatedEmails = emails.map(email => 
+                    ticketsToUpdate.includes(email) ? { ...email, status: newStatus } : email
+                );
+                setEmails(updatedEmails);
+            };
+
+            const handleSort = (column) => {
+                if (sortColumn === column) {
+                    setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+                } else {
+                    setSortColumn(column);
+                    setSortDirection('asc');
+                }
+            };
+
+            const filteredEmails = useMemo(() => {
+                let result = emails.filter(email => {
+                    const ticket = email.ticket_number || email.extracted_data?.ticket_number || "";
+                    const shop = email.shop || email.extracted_data?.shop || "";
+                    const desc = email.description || email.extracted_data?.description || "";
+                    const subj = email.subject || "";
+                    const dateStr = email.date || email.received_time;
+
+                    const searchLower = searchTerm.toLowerCase();
+                    const matchesSearch = ticket.toLowerCase().includes(searchLower) ||
+                                        shop.toLowerCase().includes(searchLower) ||
+                                        desc.toLowerCase().includes(searchLower) ||
+                                        subj.toLowerCase().includes(searchLower);
+
+                    let matchesType = true;
+                    if (filterType === 'mx') matchesType = ticket.startsWith('BZ');
+                    if (filterType === 'cdc') matchesType = ticket.startsWith('HK') || ticket.startsWith('CDC') || ticket.startsWith('IN') || shop.toLowerCase().startsWith('cdc');
+
+                    let matchesDate = true;
+                    if (dateStr && (startDate || endDate)) {
+                        const emailDate = new Date(dateStr);
+                        emailDate.setHours(0, 0, 0, 0);
+                        if (startDate) {
+                            const start = new Date(startDate);
+                            start.setHours(0, 0, 0, 0);
+                            if (emailDate < start) matchesDate = false;
+                        }
+                        if (endDate) {
+                            const end = new Date(endDate);
+                            end.setHours(23, 59, 59, 999);
+                            if (emailDate > end) matchesDate = false;
+                        }
+                    }
+                    return matchesSearch && matchesType && matchesDate;
+                });
+
+                // Apply sorting
+                if (sortColumn) {
+                    result.sort((a, b) => {
+                        let aVal = a[sortColumn] || '';
+                        let bVal = b[sortColumn] || '';
+                        
+                        if (sortColumn === 'date') {
+                            aVal = new Date(aVal);
+                            bVal = new Date(bVal);
+                        }
+                        
+                        if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+                        if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+                        return 0;
+                    });
+                }
+
+                return result;
+            }, [emails, searchTerm, filterType, startDate, endDate, sortColumn, sortDirection]);
+
+            return (
+                <div className="min-h-screen bg-gray-50 pb-20">
+                    <div className="bg-white border-b border-gray-200 sticky top-0 z-10 shadow-sm">
+                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+                            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                                <div className="flex items-center">
+                                    <div className="bg-blue-600 p-2 rounded-lg mr-3">
+                                        <Icon name="layout-dashboard" className="text-white w-6 h-6" />
+                                    </div>
+                                    <div>
+                                        <h1 className="text-xl font-bold text-gray-900">IT Ticket Dashboard</h1>
+                                        <p className="text-xs text-gray-500">Showing {filteredEmails.length} / {emails.length} tickets</p>
+                                    </div>
+                                </div>
+                                
+                                <div className="flex items-center space-x-3 flex-wrap justify-end">
+                                    <button 
+                                        onClick={() => handleScan(false)}
+                                        disabled={isScanning}
+                                        className={`flex items-center px-4 py-2 rounded-lg shadow-sm text-sm font-medium transition text-white ${isScanning ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}>
+                                        {isScanning ? <div className="loading-spinner mr-2"></div> : <Icon name="refresh-cw" className="w-4 h-4 mr-2" />}
+                                        {isScanning ? 'Scanning...' : 'Scan Recent (50)'}
+                                    </button>
+                                    
+                                    <button 
+                                        onClick={() => handleScan(true)}
+                                        disabled={isScanning}
+                                        className={`flex items-center px-4 py-2 rounded-lg shadow-sm text-sm font-medium transition text-white ${isScanning ? 'bg-green-600 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'}`}>
+                                        <Icon name="inbox" className="w-4 h-4 mr-2" />
+                                        {isScanning ? 'Scanning...' : 'Scan All Emails'}
+                                    </button>
+
+                                    <label className="flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 cursor-pointer transition">
+                                        <Icon name="upload" className="w-4 h-4 mr-2 text-gray-500" />
+                                        Upload ticket.json
+                                        <input type="file" accept=".json" onChange={handleFileUpload} className="hidden" />
+                                    </label>
+                                    
+                                    <button 
+                                        onClick={handleExport}
+                                        className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg shadow-sm text-sm font-medium hover:bg-green-700 transition">
+                                        <Icon name="download" className="w-4 h-4 mr-2" />
+                                        Export
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                            <StatCard title="Total Tickets" value={stats.total} iconName="mail" color="text-gray-600 bg-gray-100" />
+                            <StatCard title="Extracted Data" value={stats.extracted} iconName="check-circle" color="text-green-600 bg-green-100" />
+                            <StatCard title="MX System" value={stats.mx} iconName="monitor" color="text-blue-600 bg-blue-100" />
+                            <StatCard title="CDC Tickets" value={stats.cdc} iconName="alert-circle" color="text-orange-600 bg-orange-100" />
+                        </div>
+
+                        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm mb-6 space-y-4">
+                            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                                <div className="relative w-full md:w-1/3">
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <Icon name="search" className="h-5 w-5 text-gray-400" />
+                                    </div>
+                                    <input
+                                        type="text"
+                                        className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                                        placeholder="Search ticket #, shop..."
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                    />
+                                </div>
+
+                                <div className="flex items-center space-x-2 w-full md:w-auto">
+                                    <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+                                    <span className="text-gray-400">-</span>
+                                    <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+                                </div>
+
+                                <div className="flex bg-gray-100 rounded-lg p-1">
+                                    {['all', 'mx', 'cdc'].map(type => (
+                                        <button
+                                            key={type}
+                                            onClick={() => setFilterType(type)}
+                                            className={`px-4 py-1.5 text-sm font-medium rounded-md capitalize transition ${filterType === type ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+                                            {type.toUpperCase()}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* View Toggle and Bulk Actions */}
+                        <div className="flex justify-between items-center mb-4">
+                            <div className="flex gap-2">
+                                {viewMode === 'table' && selectedRows.length > 0 && (
+                                    <>
+                                        <button 
+                                            onClick={handleBulkDelete}
+                                            className="flex items-center px-3 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition">
+                                            <Icon name="trash-2" className="w-4 h-4 mr-2" />
+                                            Delete ({selectedRows.length})
+                                        </button>
+                                        <button 
+                                            onClick={handleExport}
+                                            className="flex items-center px-3 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition">
+                                            <Icon name="download" className="w-4 h-4 mr-2" />
+                                            Export Selected
+                                        </button>
+                                        <button 
+                                            onClick={handleBulkStatusChange}
+                                            className="flex items-center px-3 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition">
+                                            <Icon name="check-circle" className="w-4 h-4 mr-2" />
+                                            Change Status
+                                        </button>
+                                    </>
+                                )}
+                            </div>
+                            
+                            <div className="flex bg-gray-100 rounded-lg p-1">
+                                <button
+                                    onClick={() => {setViewMode('card'); setSelectedRows([]);}}
+                                    className={`flex items-center px-4 py-2 text-sm font-medium rounded-md transition ${viewMode === 'card' ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+                                    <Icon name="layout-grid" className="w-4 h-4 mr-2" />
+                                    Card View
+                                </button>
+                                <button
+                                    onClick={() => setViewMode('table')}
+                                    className={`flex items-center px-4 py-2 text-sm font-medium rounded-md transition ${viewMode === 'table' ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+                                    <Icon name="table" className="w-4 h-4 mr-2" />
+                                    Table View
+                                </button>
+                            </div>
+                        </div>
+
+                        {filteredEmails.length === 0 ? (
+                            <div className="text-center py-20 bg-white rounded-xl border border-dashed border-gray-300">
+                                <Icon name="file-json" className="mx-auto h-12 w-12 text-gray-400" />
+                                <h3 className="mt-2 text-sm font-medium text-gray-900">No tickets found</h3>
+                                <p className="mt-1 text-sm text-gray-500">Scan emails or upload a JSON file to get started.</p>
+                            </div>
+                        ) : viewMode === 'card' ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {filteredEmails.map((email, idx) => <TicketCard key={idx} email={email} />)}
+                            </div>
+                        ) : (
+                            <TableView 
+                                tickets={filteredEmails}
+                                selectedRows={selectedRows}
+                                onRowSelect={handleRowSelect}
+                                onRowClick={(index) => setSelectedTicketIndex(index)}
+                                onUpdateTicket={handleUpdateTicket}
+                                sortColumn={sortColumn}
+                                sortDirection={sortDirection}
+                                onSort={handleSort}
+                            />
+                        )}
+                    </div>
+
+                    {selectedTicketIndex !== null && (
+                        <DetailModal 
+                            ticket={filteredEmails[selectedTicketIndex]}
+                            onClose={() => setSelectedTicketIndex(null)}
+                            onUpdate={(updatedTicket) => {
+                                const emailIndex = emails.findIndex(e => e === filteredEmails[selectedTicketIndex]);
+                                const updatedEmails = [...emails];
+                                updatedEmails[emailIndex] = updatedTicket;
+                                setEmails(updatedEmails);
+                            }}
+                        />
+                    )}
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>

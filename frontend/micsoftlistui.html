@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IT Tickets - Microsoft Lists Clone</title>
+    <style>
+        /* CSS: 模仿 Microsoft Fluent UI 設計美學 */
+        :root {
+            --primary-blue: #0078d4;
+            --primary-blue-hover: #106ebe;
+            --bg-gray: #f3f2f1;
+            --text-dark: #323130;
+            --text-gray: #605e5c;
+            --border-color: #edebe9;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            font-family: "Segoe UI", "Segoe UI Web (West European)", "Helvetica Neue", sans-serif;
+            color: var(--text-dark);
+            background-color: #ffffff;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* 頂部導航與命令列 */
+        .ms-Header {
+            height: 48px;
+            background-color: var(--primary-blue);
+            color: white;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            font-weight: 600;
+        }
+
+        .ms-CommandBar {
+            height: 44px;
+            background-color: white;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+        }
+
+        .ms-CommandButton {
+            background: none;
+            border: none;
+            color: var(--text-dark);
+            padding: 8px 12px;
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            border-radius: 2px;
+        }
+
+        .ms-CommandButton:hover {
+            background-color: var(--bg-gray);
+        }
+
+        /* 主內容區與表格 */
+        .ms-MainContent {
+            flex: 1;
+            overflow: auto;
+            padding: 20px;
+        }
+
+        .ms-Table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+
+        .ms-Table th {
+            font-weight: 400;
+            color: var(--text-gray);
+            border-bottom: 1px solid var(--border-color);
+            padding: 12px 16px;
+            cursor: pointer;
+        }
+
+        .ms-Table th:hover {
+            background-color: var(--bg-gray);
+        }
+
+        .ms-Table td {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 14px;
+        }
+
+        .ms-Table tr:hover td {
+            background-color: var(--bg-gray);
+            cursor: pointer;
+        }
+
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .status-open { background-color: #fde7e9; color: #a4262c; }
+        .status-resolved { background-color: #dff6dd; color: #107c10; }
+
+        /* 右側編輯面板 (Panel) */
+        .ms-Panel {
+            position: fixed;
+            top: 0;
+            right: -400px;
+            width: 400px;
+            height: 100vh;
+            background-color: white;
+            box-shadow: -4px 0 16px rgba(0,0,0,0.1);
+            transition: right 0.3s ease-in-out;
+            display: flex;
+            flex-direction: column;
+            z-index: 1000;
+        }
+
+        .ms-Panel.open {
+            right: 0;
+        }
+
+        .ms-Panel-header {
+            padding: 20px;
+            font-size: 20px;
+            font-weight: 600;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .ms-Panel-close {
+            background: none;
+            border: none;
+            font-size: 16px;
+            cursor: pointer;
+            color: var(--text-gray);
+        }
+
+        .ms-Panel-content {
+            padding: 20px;
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .ms-TextField {
+            margin-bottom: 16px;
+        }
+
+        .ms-TextField label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .ms-TextField input, .ms-TextField select, .ms-TextField textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid var(--text-gray);
+            border-radius: 2px;
+            box-sizing: border-box;
+            font-family: inherit;
+        }
+
+        .ms-Panel-footer {
+            padding: 20px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        .ms-Button-primary {
+            background-color: var(--primary-blue);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 2px;
+            cursor: pointer;
+        }
+
+        .ms-Button-primary:hover {
+            background-color: var(--primary-blue-hover);
+        }
+
+        .ms-Button-default {
+            background-color: white;
+            color: var(--text-dark);
+            border: 1px solid var(--text-gray);
+            padding: 8px 16px;
+            border-radius: 2px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="ms-Header">
+        <span>SharePoint | TEST - IT Tickets</span>
+    </div>
+
+    <div class="ms-CommandBar">
+        <button class="ms-CommandButton">➕ 新增</button>
+        <button class="ms-CommandButton">✏️ 在方格檢視中編輯</button>
+        <button class="ms-CommandButton">🔄 重新整理</button>
+    </div>
+
+    <div class="ms-MainContent">
+        <table class="ms-Table">
+            <thead>
+                <tr>
+                    <th>工單編號</th>
+                    <th>主旨</th>
+                    <th>寄件者</th>
+                    <th>門市/位置</th>
+                    <th>狀態</th>
+                    <th>日期</th>
+                </tr>
+            </thead>
+            <tbody id="ticketTableBody">
+                </tbody>
+        </table>
+    </div>
+
+    <div class="ms-Panel" id="editPanel">
+        <div class="ms-Panel-header">
+            <span>編輯項目</span>
+            <button class="ms-Panel-close" onclick="closePanel()">✖</button>
+        </div>
+        <div class="ms-Panel-content">
+            <input type="hidden" id="edit-id">
+            
+            <div class="ms-TextField">
+                <label>工單編號</label>
+                <input type="text" id="edit-ticketNumber" disabled style="background-color: #f3f2f1;">
+            </div>
+            
+            <div class="ms-TextField">
+                <label>主旨</label>
+                <input type="text" id="edit-subject">
+            </div>
+
+            <div class="ms-TextField">
+                <label>狀態</label>
+                <select id="edit-status">
+                    <option value="Open">Open (開啟)</option>
+                    <option value="Resolved">Resolved (已解決)</option>
+                </select>
+            </div>
+
+            <div class="ms-TextField">
+                <label>處理備註 (Notes)</label>
+                <textarea id="edit-notes" rows="4"></textarea>
+            </div>
+        </div>
+        <div class="ms-Panel-footer">
+            <button class="ms-Button-default" onclick="closePanel()">取消</button>
+            <button class="ms-Button-primary" onclick="saveTicket()">儲存</button>
+        </div>
+    </div>
+
+    <script>
+        // JS: 處理資料擷取、渲染與編輯邏輯
+        let ticketsData = [];
+        let currentEditingIndex = -1;
+
+        // 初始化：載入 JSON 資料
+        async function loadTickets() {
+            try {
+                // 這裡假設你有一個 tickets.json 在同一個資料夾
+                // 如果在本地端以 file:// 開啟會遇到 CORS 問題，建議使用 VSCode 的 Live Server 開啟
+                const response = await fetch('../database/ticket.json');
+                if (!response.ok) throw new Error('找不到 ticket.json');
+                ticketsData = await response.json();
+                renderTable();
+            } catch (error) {
+                console.warn(error);
+                // 為了展示目的，如果讀不到檔案，給予預設假資料
+                ticketsData = [
+                    { id: 1, ticketNumber: "MX-1001", subject: "Register offline", sender: "user1@shop.com", location: "MX01", status: "Open", date: "2026-02-15", notes: "" },
+                    { id: 2, ticketNumber: "MX-1002", subject: "Network issue", sender: "manager@shop.com", location: "MX05", status: "Resolved", date: "2026-02-14", notes: "Rebooted router." }
+                ];
+                renderTable();
+            }
+        }
+
+        // 將資料渲染至 HTML 表格
+        function renderTable() {
+            const tbody = document.getElementById('ticketTableBody');
+            tbody.innerHTML = ''; // 清空現有內容
+
+            ticketsData.forEach((ticket, index) => {
+                const tr = document.createElement('tr');
+                tr.onclick = () => openPanel(index); // 點擊整行開啟編輯
+
+                const statusClass = ticket.status === 'Open' ? 'status-open' : 'status-resolved';
+
+                tr.innerHTML = `
+                    <td>${ticket.ticketNumber}</td>
+                    <td>${ticket.subject}</td>
+                    <td>${ticket.sender}</td>
+                    <td>${ticket.location}</td>
+                    <td><span class="status-badge ${statusClass}">${ticket.status}</span></td>
+                    <td>${ticket.date}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // 開啟編輯面板並填入資料
+        function openPanel(index) {
+            currentEditingIndex = index;
+            const ticket = ticketsData[index];
+            
+            document.getElementById('edit-ticketNumber').value = ticket.ticketNumber;
+            document.getElementById('edit-subject').value = ticket.subject;
+            document.getElementById('edit-status').value = ticket.status;
+            document.getElementById('edit-notes').value = ticket.notes || "";
+
+            document.getElementById('editPanel').classList.add('open');
+        }
+
+        // 關閉編輯面板
+        function closePanel() {
+            document.getElementById('editPanel').classList.remove('open');
+            currentEditingIndex = -1;
+        }
+
+        // 儲存修改
+        function saveTicket() {
+            if (currentEditingIndex === -1) return;
+
+            // 更新記憶體中的陣列資料
+            ticketsData[currentEditingIndex].subject = document.getElementById('edit-subject').value;
+            ticketsData[currentEditingIndex].status = document.getElementById('edit-status').value;
+            ticketsData[currentEditingIndex].notes = document.getElementById('edit-notes').value;
+
+            // 重新渲染畫面
+            renderTable();
+            closePanel();
+
+            // ⚠️ 這裡需要呼叫後端 API 將變更寫入實際的 JSON 檔案
+            console.log("資料已在前端更新，需透過後端 API 寫入實體檔案：", ticketsData[currentEditingIndex]);
+            // fetch('/api/update-ticket', { method: 'POST', body: JSON.stringify(ticketsData[currentEditingIndex]) ... })
+        }
+
+        // 啟動程式
+        loadTickets();
+    </script>
+</body>
+</html>
