@@ -961,34 +961,5 @@
     "ticket_number": "HK542280",
     "shop": "cdc933",
     "description": "午市有一餐條和和收銀機唔同步"
-  },
-  {
-    "sender": "CDC ITD CallCenter",
-    "date": "2026-02-17 17:37:45.690000+00:00",
-    "subject": "[HK542279]南區石排(801)，IT - System / Software，Digital Menu，PPN - 其它品牌門店，第1塊電子餐倉餐條和收銀機唔同步，",
-    "body": "\tCAUTION: This email originated from outside of the organisation. Do not click links or open attachments unless you recognise the sender and know the content is safe. \r\n警告： 這封電子郵件來自外來電郵。如不認識寄件者，或不確定內容是否安全，切勿點開其中的連結，或是打開或儲存附件。 \r\nDear ,CDC: Vendor- PPN\r\nITD-Ticket# (HK542279) has been reported on [2026-02-17 17:37:06] by [楊小姐].\r\n[CDC]/[南區石排(801)]\r\n\r\nInci. ID:\r\n\r\nHK542279 \r\n\r\nCust. Name:\r\n\r\n南區石排(801) \r\n\r\nType:\r\n\r\nIT - System / Software \r\n\r\nCategory:\r\n\r\nDigital Menu \r\n\r\nSub-Category:\r\n\r\nPPN - 其它品牌門店 \r\n\r\nPriority:\r\n\r\nHigh \r\n\r\nHandling Office:\r\n\r\nCDC: Vendor- PPN \r\n\r\nReporter Name:\r\n\r\n楊小姐 \r\n\r\nContact Number 1:\r\n\r\n22949100 \r\n\r\nContact email:\r\n\r\ncdc.801@cafedecoral.com, \r\n\r\nDescription:\r\n\r\n第1塊電子餐倉餐條和收銀機唔同步 \r\n\r\n\r\nPlease refer to the Inci. ID for all future correspondence about this issue.\r\n\r\nBest Regards，\r\nITD Call Center \r\n\r\n************************************************************************************************************************************ \r\n\r\nThe information contained in this email may be confidential and/or privileged and is only for the intended recipient. If you are not the intended recipient, you should not disclose, disseminate, distribute, print or copy this email. Please notify the sender immediately by email if you have received this email by mistake and delete this email from your system. Please note that email transmission cannot be guaranteed to be secure or error-free as information could be intercepted, interfered, lost, destroyed, delayed or incomplete or contain virus. The sender therefore does not make any representation or warranty as to the accuracy of the contents in the email and expressly disclaims any liability whatsoever for any loss or damage howsoever arising from any part of this email transmission. \r\n\r\n本電郵所載數據可能屬機密及/或受保密權涵蓋的數據及僅供指定的收件人使用。如你并非指定的收件人，請勿披露、傳 送、分發、打印或復制本電郵。如你錯誤地收到本電郵，請立即以電郵通知發件人，并從你的系統刪除本電郵。請注意，由于電郵內容可能被截取、干擾、遺失、破壞、延遲傳送或缺失或含有病毒，電郵的傳送不能保證安全或毫無錯漏。因此，發件人不對電郵內容的準確性作出任何聲明或保證，并明確表示對于由傳送本電郵任何部分而產生的任何損失或損害，亦不會承擔任何法律責任。 \r\n\r\n************************************************************************************************************************************ \r\n",
-    "recipients": [
-      {
-        "name": "iSupport",
-        "email": "/o=ExchangeLabs/ou=Exchange Administrative Group (FYDIBOHF23SPDLT)/cn=Recipients/cn=1fe8c29757374bfeae9dbafd2187f2bb-20169a46-cf",
-        "type": 1
-      },
-      {
-        "name": "operator@cafedecoral.com",
-        "email": "operator@cafedecoral.com",
-        "type": 2
-      },
-      {
-        "name": "cdc_hk_itd@wtto.com",
-        "email": "cdc_hk_itd@wtto.com",
-        "type": 2
-      }
-    ],
-    "filter_actions": [
-      "extract_cdc"
-    ],
-    "ticket_number": "HK542279",
-    "shop": "cdc801",
-    "description": "第1塊電子餐倉餐條和收銀機唔同步"
   }
 ]
