@@ -76,61 +76,28 @@ def extract_fw_data(email_data):
     def trim(text: str) -> str:
         return text.strip() if text else ''
     
-    def first(items: list) -> str:
-        return items[0] if items else ''
-    
-    def split(text: str, separator: str) -> list:
-        return text.split(separator) if text else []
-    
-    def substring(text: str, start_index: int, length: int = None) -> str:
-        if not text:
-            return ''
-        if start_index < 0:
-            start_index = 0
-        if length is None:
-            return text[start_index:]
-        return text[start_index:start_index + length]
-    
-    def index_of(text: str, search: str) -> int:
-        return text.find(search) if text else -1
-    
-    def concat(*args) -> str:
-        return "".join(str(arg) for arg in args)
-    
     fw_data = {}
     
     try:
-        # Get the full text for processing
         text = body_text
         
-        # Extract ticket_number: trim(first(split(substring(outputs('Text'), add(indexOf(outputs('Text'), '申請編號ITD'),4),20), '分店F')))
-        ticket_index = index_of(text, '申請編號ITD')
-        if ticket_index != -1:
-            ticket_text = substring(text, ticket_index + 4, 20)
-            ticket_split = split(ticket_text, '分店F')
-            ticket_number = trim(first(ticket_split))
-            if ticket_number:
-                fw_data['ticket_number'] = ticket_number
+        # Extract ticket_number: 申請編號: ITD-SUP-000179
+        ticket_match = re.search(r'申請編號[:\s]*([A-Z0-9\-]+)', text, re.IGNORECASE)
+        if ticket_match:
+            fw_data['ticket_number'] = ticket_match.group(1).strip()
         
-        # Extract Location: trim(first(split(substring(outputs('Text'), add(indexOf(outputs('Text'), '-分店(F'),5),5), ')')))
-        location_index = index_of(text, '-分店(F')
-        if location_index != -1:
-            location_text = substring(text, location_index + 5, 5)
-            location_split = split(location_text, ')')
-            location = trim(first(location_split))
-            if location:
-                # shop: concat('FW', string(int(outputs('Location'))))
-                try:
-                    fw_data['shop'] = 'FW' + str(int(location))
-                except:
-                    fw_data['shop'] = 'FW' + location
+        # Extract Location - look for F followed by numbers (like F314)
+        # Also try the format "分店 F314" or "分店	F314" (with tab)
+        location_match = re.search(r'[分店\s\t]+F(\d+)', text) or re.search(r'F(\d+)', text)
+        if location_match:
+            loc_num = location_match.group(1)
+            if loc_num:
+                fw_data['shop'] = 'FW' + loc_num
         
-        # Extract Description: trim(first(split(substring(outputs('Text'), add(indexOf(outputs('Text'), '故障現象'),4),30), '申請備註')))
-        desc_index = index_of(text, '故障現象')
-        if desc_index != -1:
-            desc_text = substring(text, desc_index + 4, 30)
-            desc_split = split(desc_text, '申請備註')
-            description = trim(first(desc_split))
+        # Extract Description: 故障現象: ...
+        desc_match = re.search(r'故障現象[:\s]*([^\n]+)', text)
+        if desc_match:
+            description = desc_match.group(1).strip()
             if description:
                 fw_data['description'] = description
         

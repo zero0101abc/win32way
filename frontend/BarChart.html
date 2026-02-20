@@ -53,17 +53,11 @@
                         </div>
                         <div class="h-6 w-px bg-gray-300"></div>
                         <div id="siteFilterContainer" class="hidden flex items-center space-x-2">
-                            <label class="text-sm text-gray-600">Site:</label>
-                            <select 
-                                id="siteFilter"
-                                onchange="applySiteFilter()"
-                                class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            >
-                                <option value="all">All Sites</option>
-                                <option value="CDC">CDC Only</option>
-                                <option value="MX">MX Only</option>
-                                <option value="OTHER">Other Only</option>
-                            </select>
+                            <button onclick="setSiteFilter('all')" id="filterAll" class="px-3 py-1.5 bg-blue-600 text-white rounded-md text-sm font-medium">All</button>
+                            <button onclick="setSiteFilter('CDC')" id="filterCDC" class="px-3 py-1.5 bg-gray-200 text-gray-700 rounded-md text-sm font-medium hover:bg-gray-300">CDC</button>
+                            <button onclick="setSiteFilter('MX')" id="filterMX" class="px-3 py-1.5 bg-gray-200 text-gray-700 rounded-md text-sm font-medium hover:bg-gray-300">MX</button>
+                            <button onclick="setSiteFilter('FW')" id="filterFW" class="px-3 py-1.5 bg-gray-200 text-gray-700 rounded-md text-sm font-medium hover:bg-gray-300">FW</button>
+                            <button onclick="setSiteFilter('OTHER')" id="filterOTHER" class="px-3 py-1.5 bg-gray-200 text-gray-700 rounded-md text-sm font-medium hover:bg-gray-300">Other</button>
                         </div>
                         <div class="flex items-center space-x-2">
                             <input 
@@ -180,16 +174,30 @@
     <script>
         let barChart = null;
         let allTickets = [];
-        let currentMode = 1;
+        let currentMode = 2;
         let currentSiteFilter = 'all';
+
+        function getTodayDate() {
+            return new Date().toISOString().split('T')[0];
+        }
+
+        function getFirstDayOfMonth() {
+            const today = new Date();
+            return new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
+        }
 
         async function loadData() {
             try {
+                // Set default date range to current month
+                document.getElementById('startDate').value = getFirstDayOfMonth();
+                document.getElementById('endDate').value = getTodayDate();
+                
                 const response = await fetch('/database/ticket.json');
                 const tickets = await response.json();
                 allTickets = tickets;
                 
-                applyDateFilter();
+                // Set default mode to by shop
+                setMode(2);
                 
             } catch (error) {
                 console.error('Error loading data:', error);
@@ -211,13 +219,26 @@
                 mode1Btn.className = 'flex items-center px-4 py-2 text-gray-600 hover:bg-gray-200 rounded-md text-sm font-medium transition';
                 mode2Btn.className = 'flex items-center px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium transition';
                 siteFilterContainer.classList.remove('hidden');
+                setSiteFilter('all');
             }
             
             applyDateFilter();
         }
 
-        function applySiteFilter() {
-            currentSiteFilter = document.getElementById('siteFilter').value;
+        function setSiteFilter(site) {
+            currentSiteFilter = site;
+            
+            // Update button styles
+            const buttons = ['filterAll', 'filterCDC', 'filterMX', 'filterFW', 'filterOTHER'];
+            buttons.forEach(id => {
+                const btn = document.getElementById(id);
+                if (id === 'filter' + site) {
+                    btn.className = 'px-3 py-1.5 bg-blue-600 text-white rounded-md text-sm font-medium';
+                } else {
+                    btn.className = 'px-3 py-1.5 bg-gray-200 text-gray-700 rounded-md text-sm font-medium hover:bg-gray-300';
+                }
+            });
+            
             applyDateFilter();
         }
 
@@ -282,10 +303,10 @@
         }
 
         function clearDateFilter() {
-            document.getElementById('startDate').value = '';
-            document.getElementById('endDate').value = '';
-            document.getElementById('siteFilter').value = 'all';
+            document.getElementById('startDate').value = getFirstDayOfMonth();
+            document.getElementById('endDate').value = getTodayDate();
             currentSiteFilter = 'all';
+            setSiteFilter('all');
             document.getElementById('filterStatus').classList.add('hidden');
             processTickets(allTickets);
         }
@@ -302,26 +323,31 @@
             const siteCounts = {
                 'CDC': 0,
                 'MX': 0,
+                'FW': 0,
                 'OTHER': 0
             };
             
             const siteDetails = {
                 'CDC': {},
                 'MX': {},
+                'FW': {},
                 'OTHER': {}
             };
             
             tickets.forEach(ticket => {
-                const shop = (ticket.shop || 'Unknown').toLowerCase().trim();
+                let shop = (ticket.shop || '').toLowerCase().trim();
+                if (!shop || shop === 'unknown' || shop === 'n/a') {
+                    shop = 'ss999'; // Treat unknown as OTHER
+                }
                 let site = 'OTHER';
-                let displayKey = shop;
+                let displayKey = shop.toUpperCase();
                 
                 if (shop.startsWith('cdc')) {
                     site = 'CDC';
-                    displayKey = shop.toUpperCase();
                 } else if (shop.startsWith('mx')) {
                     site = 'MX';
-                    displayKey = shop.toUpperCase();
+                } else if (shop.startsWith('fw')) {
+                    site = 'FW';
                 }
                 siteCounts[site]++;
                 
@@ -352,20 +378,23 @@
             
             if (currentSiteFilter !== 'all') {
                 filteredTickets = tickets.filter(ticket => {
-                    const shop = (ticket.shop || 'Unknown').toLowerCase().trim();
+                    let shop = (ticket.shop || '').toLowerCase().trim();
+                    if (!shop || shop === 'unknown' || shop === 'n/a') {
+                        shop = 'ss999';
+                    }
                     let site = 'OTHER';
                     if (shop.startsWith('cdc')) site = 'CDC';
                     else if (shop.startsWith('mx')) site = 'MX';
+                    else if (shop.startsWith('fw')) site = 'FW';
                     return site === currentSiteFilter;
                 });
             }
             
             const shopCounts = {};
             filteredTickets.forEach(ticket => {
-                const shop = (ticket.shop || 'Unknown').toLowerCase();
-                if (shop) {
-                    shopCounts[shop] = (shopCounts[shop] || 0) + 1;
-                }
+                let shop = (ticket.shop || '').toLowerCase().trim();
+                if (!shop) shop = 'ss999';
+                shopCounts[shop] = (shopCounts[shop] || 0) + 1;
             });
             
             const sortedShops = Object.entries(shopCounts)
@@ -400,6 +429,7 @@
                     'MX': 'hsl(150, 70%, 50%)',
                     'OTHER': 'hsl(30, 70%, 50%)'
                 };
+                colors['FW'] = 'hsl(270, 70%, 50%)';
                 bgColors = labels.map(site => colors[site] || 'hsl(0, 0%, 50%)');
             } else {
                 const top20 = data.slice(0, 20);

@@ -121,6 +121,16 @@
             return <span ref={iconRef} className="inline-flex items-center justify-center"></span>;
         };
 
+        const getTodayDate = () => {
+            const today = new Date();
+            return today.toISOString().split('T')[0];
+        };
+
+        const getFirstDayOfMonth = () => {
+            const today = new Date();
+            return new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
+        };
+
         const MOCK_DATA = [];
 
         const StatCard = ({ title, value, iconName, color }) => (
@@ -755,11 +765,11 @@
             const [emails, setEmails] = useState(MOCK_DATA);
             const [searchTerm, setSearchTerm] = useState("");
             const [filterType, setFilterType] = useState("all"); 
-            const [startDate, setStartDate] = useState("");
-            const [endDate, setEndDate] = useState("");
+            const [startDate, setStartDate] = useState(getFirstDayOfMonth());
+            const [endDate, setEndDate] = useState(getTodayDate());
             const [isScanning, setIsScanning] = useState(false);
-            const [stats, setStats] = useState({ total: 0, mx: 0, cdc: 0, extracted: 0 });
-            const [viewMode, setViewMode] = useState("card"); // "card" or "table"
+            const [stats, setStats] = useState({ total: 0, extracted: 0, mx: 0, cdc: 0, fw: 0 });
+            const [viewMode, setViewMode] = useState("table"); // "card" or "table"
             const [selectedRows, setSelectedRows] = useState([]);
             const [selectedTicketIndex, setSelectedTicketIndex] = useState(null);
             const [sortColumn, setSortColumn] = useState('date');
@@ -794,9 +804,10 @@
                     
                     if (ticket.startsWith('BZ')) acc.mx++;
                     else if (ticket.startsWith('HK') || ticket.startsWith('CDC') || ticket.startsWith('IN') || shop.toLowerCase().startsWith('cdc')) acc.cdc++;
+                    else if (shop.toLowerCase().startsWith('fw')) acc.fw++;
                     
                     return acc;
-                }, { total: 0, mx: 0, cdc: 0, extracted: 0 });
+                }, { total: 0, mx: 0, cdc: 0, fw: 0, extracted: 0 });
                 setStats(newStats);
             }, [emails, searchTerm, filterType, startDate, endDate]);
 
@@ -1143,11 +1154,12 @@
                     </div>
 
                     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                        <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
                             <StatCard title="Total Tickets" value={stats.total} iconName="mail" color="text-gray-600 bg-gray-100" />
                             <StatCard title="Extracted Data" value={stats.extracted} iconName="check-circle" color="text-green-600 bg-green-100" />
                             <StatCard title="MX System" value={stats.mx} iconName="monitor" color="text-blue-600 bg-blue-100" />
                             <StatCard title="CDC Tickets" value={stats.cdc} iconName="alert-circle" color="text-orange-600 bg-orange-100" />
+                            <StatCard title="FW Tickets" value={stats.fw} iconName="shopping-bag" color="text-purple-600 bg-purple-100" />
                         </div>
 
                         <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm mb-6 space-y-4">
