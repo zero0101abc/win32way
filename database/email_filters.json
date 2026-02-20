@@ -22,5 +22,17 @@
         "description": "MX system alert filter",
         "enabled": true,
         "created_at": "2026-01-27 12:03:04.465924"
+    },
+    {
+        "id": 3,
+        "name": "fw",
+        "from_email": "flowadmin@fairwood.com.hk",
+        "subject_filter": "",
+        "body_filter": "",
+        "to_email": "iSupport",
+        "action": "extract_fw",
+        "description": "Fairwood workflow filter",
+        "enabled": true,
+        "created_at": "2026-02-20 00:00:00.000000"
     }
 ]
