@@ -21,7 +21,7 @@ class QuickEmailScanner:
     
     def load_filters(self):
         try:
-            with open("email_filters.json", "r", encoding="utf-8") as f:
+            with open("database/email_filters.json", "r", encoding="utf-8") as f:
                 self.filters = json.load(f)
         except:
             self.filters = []
@@ -198,7 +198,7 @@ def main():
     
     print("\n[3/3] Saving...")
     try:
-        with open("outlook_emails.json", "w", encoding="utf-8") as f:
+        with open("database/outlook_emails.json", "w", encoding="utf-8") as f:
             json.dump(results, f, indent=2, ensure_ascii=False)
         print(f"[OK] Saved to outlook_emails.json")
     except Exception as e:

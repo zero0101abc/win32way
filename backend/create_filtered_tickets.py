@@ -47,7 +47,7 @@ def create_target_tickets():
     """Create target_ticket.json with custom date range"""
     
     try:
-        with open('ticket.json', 'r', encoding='utf-8') as f:
+        with open('database/ticket.json', 'r', encoding='utf-8') as f:
             all_tickets = json.load(f)
     except FileNotFoundError:
         print("Error: ticket.json not found. Please run create_tickets.py first.")
@@ -72,7 +72,7 @@ def create_target_tickets():
     filtered = filter_tickets_by_date_range(all_tickets, start_date, end_date)
     
     if filtered:
-        with open('target_ticket.json', 'w', encoding='utf-8') as f:
+        with open('database/target_ticket.json', 'w', encoding='utf-8') as f:
             json.dump(filtered, f, indent=2, ensure_ascii=False)
         print(f"Created target_ticket.json: {len(filtered)} tickets from {start_date} to {end_date}")
         

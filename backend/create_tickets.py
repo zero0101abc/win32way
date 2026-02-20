@@ -163,7 +163,7 @@ def format_date(date_str):
 def load_existing_tickets():
     """Load existing ticket.json if it exists"""
     try:
-        with open('ticket.json', 'r', encoding='utf-8') as f:
+        with open('database/ticket.json', 'r', encoding='utf-8') as f:
             existing = json.load(f)
             print(f"Loaded {len(existing)} existing tickets from ticket.json")
             return existing
@@ -238,14 +238,14 @@ def create_ticket_json():
     
     # Load data
     try:
-        with open('outlook_emails.json', 'r', encoding='utf-8') as f:
+        with open('database/outlook_emails.json', 'r', encoding='utf-8') as f:
             emails = json.load(f)
     except FileNotFoundError:
         print("ERROR: outlook_emails.json not found. Please run test_quick.py first.")
         return
     
     try:
-        with open('email_filters.json', 'r', encoding='utf-8') as f:
+        with open('database/email_filters.json', 'r', encoding='utf-8') as f:
             filters = json.load(f)
     except FileNotFoundError:
         print("ERROR: email_filters.json not found.")
@@ -298,7 +298,7 @@ def create_ticket_json():
     merged_tickets = merge_tickets(existing_tickets, new_tickets)
     
     # Save to ticket.json
-    with open('ticket.json', 'w', encoding='utf-8') as f:
+    with open('database/ticket.json', 'w', encoding='utf-8') as f:
         json.dump(merged_tickets, f, indent=2, ensure_ascii=False)
     
     print(f"\n[OK] Successfully saved to ticket.json")

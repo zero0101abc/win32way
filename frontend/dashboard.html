@@ -516,7 +516,7 @@
             const handleScan = async (scanAll = false) => {
                 setIsScanning(true);
                 try {
-                    const endpoint = scanAll ? 'http://localhost:8000/backend/test_all.py' : 'http://localhost:8000/backend/test.py';
+                   const endpoint = scanAll ? 'http://localhost:8000/run-scan-all' : 'http://localhost:8000/run-scan';
                     const response = await fetch(endpoint);
                     const result = await response.json();
                     

@@ -55,14 +55,6 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             if scan_result.returncode != 0:
                 raise Exception(f"{script_name} failed with code {scan_result.returncode}")
 
-            # Move output files to database folder
-            for filename in ["outlook_emails.json", "ticket.json"]:
-                src = os.path.join(project_root, filename)
-                dst = os.path.join(project_root, "database", filename)
-                if os.path.exists(src):
-                    shutil.copy2(src, dst)
-                    print(f"Moved {filename} to database/")
-
             # 2. Execute create_tickets.py to process emails -> ticket.json
             print("Running create_tickets.py...")
             create_tickets_path = os.path.join(project_root, "backend", "create_tickets.py")
