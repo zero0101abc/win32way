@@ -66,9 +66,11 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             with open(ticket_path, 'r', encoding='utf-8') as f:
                 tickets = json.load(f)
                 
-            # 2. Find and update the specific ticket
+            # 2. Find and update the specific ticket (by id or ticket_number)
+            ticket_id = updated_ticket.get('id') or updated_ticket.get('ticket_number')
             for i, ticket in enumerate(tickets):
-                if ticket['ticket_number'] == updated_ticket['ticket_number']:
+                ticket_key = ticket.get('id') or ticket.get('ticket_number')
+                if ticket_key == ticket_id:
                     # Update all editable fields
                     if 'solution' in updated_ticket:
                         tickets[i]['solution'] = updated_ticket['solution']
@@ -84,6 +86,9 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                         tickets[i]['handled_by'] = updated_ticket['handled_by']
                     if 'status' in updated_ticket:
                         tickets[i]['status'] = updated_ticket['status']
+                    # Update ticket_number if it was empty before
+                    if 'ticket_number' in updated_ticket:
+                        tickets[i]['ticket_number'] = updated_ticket['ticket_number']
                     break
                     
             # 3. Save back to file
@@ -109,13 +114,11 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 
             # 2. Create new ticket with default values
             ticket_number = new_ticket.get('ticket_number', '').strip()
+            # Ticket number is now optional (can be null/empty)
+            # Generate a unique ID if not provided
             if not ticket_number:
-                self.send_response(400)
-                self.send_header('Content-type', 'application/json')
-                self.send_header('Access-Control-Allow-Origin', '*')
-                self.end_headers()
-                self.wfile.write(json.dumps({"status": "error", "message": "Ticket number is required"}).encode('utf-8'))
-                return
+                import datetime
+                ticket_number = "TEMP-" + datetime.datetime.now().strftime("%Y%m%d%H%M%S")
             
             # Check if ticket already exists
             for ticket in tickets:
@@ -141,7 +144,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 "ph_rm_os": new_ticket.get('ph_rm_os', '').strip() or '',
                 "solution": new_ticket.get('solution', '').strip() or '',
                 "fu_action": new_ticket.get('fu_action', '').strip() or '',
-                "handled_by": new_ticket.get('handled_by', 'USE_MISSING').strip() or 'USE_MISSING',
+                "handled_by": new_ticket.get('handled_by', '').strip() or '',
                 "status": new_ticket.get('status', 'in progress').strip() or 'in progress'
             }
             

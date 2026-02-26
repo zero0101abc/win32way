@@ -17,6 +17,9 @@
     
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- SheetJS for Excel export -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 
     <style>
         body { background-color: #f3f4f6; }
@@ -242,7 +245,7 @@
                                         <div className="flex items-center">Description <SortIcon column="description" /></div>
                                     </th>
                                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onClick={() => handleColumnSort('date')}>
-                                        <div className="flex items-center">Date <SortIcon column="date" /></div>
+                                        <div className="flex items-center">Report Time <SortIcon column="date" /></div>
                                     </th>
                                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Problem</th>
                                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Resolve Time</th>
@@ -309,10 +312,22 @@
                             onChange={(e) => onCheckboxChange(index, e)}
                         />
                     </td>
-                    <td className="px-4 py-3 text-sm font-medium text-gray-900">{ticket.ticket_number}</td>
+                    <td className="px-4 py-3 text-sm font-medium text-gray-900">{ticket.ticket_number || '(No Ticket)'}</td>
                     <td className="px-4 py-3 text-sm text-gray-700">{ticket.shop}</td>
                     <td className="px-4 py-3 text-sm text-gray-600 max-w-xs truncate" title={ticket.description}>{ticket.description}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{ticket.date}</td>
+                    <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                        <input 
+                            type="datetime-local" 
+                            className="text-xs border border-gray-300 rounded px-2 py-1 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                            value={ticket.date ? ticket.date.replace(' ', 'T') : ''}
+                            onChange={(e) => {
+                                handleInputChange('date', e.target.value.replace('T', ' '), e);
+                            }}
+                            onBlur={(e) => {
+                                handleInputBlur('date', e.target.value.replace('T', ' '), e);
+                            }}
+                        />
+                    </td>
                     <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                         <select 
                             className="text-xs border border-gray-300 rounded px-2 py-1 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
@@ -326,12 +341,11 @@
                     </td>
                     <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                         <input 
-                            type="text" 
-                            className="text-xs border border-gray-300 rounded px-2 py-1 w-20 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                            type="datetime-local" 
+                            className="text-xs border border-gray-300 rounded px-2 py-1 w-36 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                             value={ticket.resolve_time || ''}
                             onChange={(e) => handleInputChange('resolve_time', e.target.value, e)}
                             onBlur={(e) => handleInputBlur('resolve_time', e.target.value, e)}
-                            placeholder="Time"
                         />
                     </td>
                     <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
@@ -365,14 +379,32 @@
                         />
                     </td>
                     <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                        <select 
-                            className="text-xs border border-gray-300 rounded px-2 py-1 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                            value={ticket.handled_by || 'USE_MISSING'}
-                            onChange={(e) => handleFieldChange('handled_by', e.target.value, e)}
-                            onBlur={(e) => handleFieldBlur('handled_by', e.target.value, e)}
-                        >
-                            {HANDLER_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                        </select>
+                        {(() => {
+                            const currentHandlers = Array.isArray(ticket.handled_by) 
+                                ? ticket.handled_by 
+                                : (ticket.handled_by ? ticket.handled_by.split(',').filter(h => h) : []);
+                            return (
+                                <div className="flex flex-wrap gap-1">
+                                    {HANDLER_OPTIONS.filter(opt => opt !== 'USE_MISSING').map(opt => (
+                                        <label key={opt} className="inline-flex items-center text-xs">
+                                            <input 
+                                                type="checkbox" 
+                                                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-1"
+                                                checked={currentHandlers.includes(opt)}
+                                                onChange={(e) => {
+                                                    const newHandlers = e.target.checked
+                                                        ? [...currentHandlers, opt]
+                                                        : currentHandlers.filter(h => h !== opt);
+                                                    handleFieldChange('handled_by', newHandlers.join(','), e);
+                                                    handleFieldBlur('handled_by', newHandlers.join(','), e);
+                                                }}
+                                            />
+                                            {opt}
+                                        </label>
+                                    ))}
+                                </div>
+                            );
+                        })()}
                     </td>
                     <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                         <button
@@ -446,8 +478,13 @@
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-                                <input type="text" value={editedTicket.date} disabled className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600" />
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Report Time</label>
+                                <input 
+                                    type="datetime-local" 
+                                    value={editedTicket.date ? editedTicket.date.replace(' ', 'T') : ''} 
+                                    onChange={(e) => handleChange('date', e.target.value.replace('T', ' '))}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                                />
                             </div>
 
                             {/* Editable fields */}
@@ -469,13 +506,25 @@
 
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">Handled By</label>
-                                        <select 
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                            value={editedTicket.handled_by || 'USE_MISSING'}
-                                            onChange={(e) => handleChange('handled_by', e.target.value)}
-                                        >
-                                            {HANDLER_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                                        </select>
+                                        <div className="flex flex-wrap gap-2">
+                                            {HANDLER_OPTIONS.filter(opt => opt !== 'USE_MISSING').map(opt => (
+                                                <label key={opt} className="inline-flex items-center text-sm">
+                                                    <input 
+                                                        type="checkbox" 
+                                                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-1"
+                                                        checked={(editedTicket.handled_by || '').split(',').filter(h => h).includes(opt)}
+                                                        onChange={(e) => {
+                                                            const currentHandlers = (editedTicket.handled_by || '').split(',').filter(h => h);
+                                                            const newHandlers = e.target.checked
+                                                                ? [...currentHandlers, opt]
+                                                                : currentHandlers.filter(h => h !== opt);
+                                                            handleChange('handled_by', newHandlers.join(','));
+                                                        }}
+                                                    />
+                                                    {opt}
+                                                </label>
+                                            ))}
+                                        </div>
                                     </div>
                                 </div>
 
@@ -509,11 +558,10 @@
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">Resolve Time</label>
                                         <input 
-                                            type="text" 
+                                            type="datetime-local" 
                                             value={editedTicket.resolve_time || ''} 
                                             onChange={(e) => handleChange('resolve_time', e.target.value)}
                                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
-                                            placeholder="Enter resolve time" 
                                         />
                                     </div>
                                     <div>
@@ -575,7 +623,7 @@
                 ph_rm_os: '',
                 solution: '',
                 fu_action: '',
-                handled_by: 'USE_MISSING',
+                handled_by: '',
                 status: 'in progress'
             });
             const [isSaving, setIsSaving] = useState(false);
@@ -585,10 +633,7 @@
             };
 
             const handleSubmit = async () => {
-                if (!newTicket.ticket_number.trim()) {
-                    alert('Ticket number is required');
-                    return;
-                }
+                // Ticket number is now optional
                 setIsSaving(true);
                 try {
                     await onAdd(newTicket);
@@ -612,13 +657,13 @@
                         <div className="p-6 space-y-4">
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Ticket Number *</label>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Ticket Number</label>
                                     <input 
                                         type="text" 
                                         value={newTicket.ticket_number} 
                                         onChange={(e) => handleChange('ticket_number', e.target.value)}
                                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
-                                        placeholder="e.g., MANUAL001"
+                                        placeholder="Leave empty for auto-generated"
                                     />
                                 </div>
                                 <div>
@@ -644,13 +689,12 @@
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Report Time</label>
                                 <input 
-                                    type="text" 
+                                    type="datetime-local" 
                                     value={newTicket.date} 
                                     onChange={(e) => handleChange('date', e.target.value)}
                                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
-                                    placeholder="2026-02-20 14:30"
                                 />
                             </div>
 
@@ -668,13 +712,25 @@
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Handled By</label>
-                                    <select 
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                        value={newTicket.handled_by}
-                                        onChange={(e) => handleChange('handled_by', e.target.value)}
-                                    >
-                                        {HANDLER_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                                    </select>
+                                    <div className="flex flex-wrap gap-2">
+                                        {HANDLER_OPTIONS.filter(opt => opt !== 'USE_MISSING').map(opt => (
+                                            <label key={opt} className="inline-flex items-center text-sm">
+                                                <input 
+                                                    type="checkbox" 
+                                                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-1"
+                                                    checked={(newTicket.handled_by || '').split(',').filter(h => h).includes(opt)}
+                                                    onChange={(e) => {
+                                                        const currentHandlers = (newTicket.handled_by || '').split(',').filter(h => h);
+                                                        const newHandlers = e.target.checked
+                                                            ? [...currentHandlers, opt]
+                                                            : currentHandlers.filter(h => h !== opt);
+                                                        handleChange('handled_by', newHandlers.join(','));
+                                                    }}
+                                                />
+                                                {opt}
+                                            </label>
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
 
@@ -708,11 +764,10 @@
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Resolve Time</label>
                                     <input 
-                                        type="text" 
+                                        type="datetime-local" 
                                         value={newTicket.resolve_time} 
                                         onChange={(e) => handleChange('resolve_time', e.target.value)}
                                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
-                                        placeholder="Enter resolve time"
                                     />
                                 </div>
                                 <div>
@@ -836,7 +891,7 @@
                             ph_rm_os: ticket.ph_rm_os || '',
                             solution: ticket.solution || '',
                             fu_action: ticket.fu_action || '',
-                            handled_by: ticket.handled_by || 'USE_MISSING',
+                            handled_by: ticket.handled_by || '',
                             status: ticket.status || 'in progress'
                         }));
                         setEmails(initializedData);
@@ -866,7 +921,7 @@
                                 ph_rm_os: ticket.ph_rm_os || '',
                                 solution: ticket.solution || '',
                                 fu_action: ticket.fu_action || '',
-                                handled_by: ticket.handled_by || 'USE_MISSING',
+                                handled_by: ticket.handled_by || '',
                                 status: ticket.status || 'in progress'
                             }));
                             setEmails(initializedData);
@@ -891,6 +946,31 @@
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
+            };
+
+            const handleExportXLSX = () => {
+                const headers = ['ticket_number', 'shop', 'description', 'date', 'problem', 'resolve_time', 'ph_rm_os', 'solution', 'fu_action', 'handled_by', 'status'];
+                
+                const data = filteredEmails.map(ticket => {
+                    const row = {};
+                    headers.forEach(h => row[h] = ticket[h] || '');
+                    return row;
+                });
+                
+                const ws = XLSX.utils.json_to_sheet(data, { header: headers });
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, 'Tickets');
+                
+                const dateRange = startDate && endDate 
+                    ? `${startDate}_to_${endDate}` 
+                    : startDate 
+                        ? `from_${startDate}` 
+                        : endDate 
+                            ? `until_${endDate}` 
+                            : 'all';
+                const filename = `tickets_export_${dateRange}.xlsx`;
+                
+                XLSX.writeFile(wb, filename);
             };
 
             const handleUpdateTicket = (index, field, value) => {
@@ -1193,6 +1273,14 @@
                                         </button>
                                     ))}
                                 </div>
+
+                                <button 
+                                    onClick={handleExportXLSX}
+                                    className="flex items-center px-3 py-2 bg-green-700 text-white rounded-lg text-sm font-medium hover:bg-green-800 transition"
+                                >
+                                    <Icon name="file-spreadsheet" className="w-4 h-4 mr-2" />
+                                    Export XLSX
+                                </button>
                             </div>
                         </div>
 

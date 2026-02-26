@@ -1,7 +1,13 @@
 #!/usr/bin/env python3
 import json
 import re
+import sys
+import io
 from datetime import datetime
+
+if sys.platform == "win32":
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
 
 def contains(text: str, search: str) -> bool:
     return search.lower() in text.lower()

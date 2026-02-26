@@ -6,6 +6,7 @@
     <title>Admin Settings - IT Ticket System</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <style>
         body { background-color: #f3f4f6; }
         .section { display: none; }
@@ -230,13 +231,23 @@
                             </div>
                             <div>
                                 <h3 class="text-lg font-semibold text-gray-800">Export Tickets</h3>
-                                <p class="text-sm text-gray-500">Download all tickets as JSON</p>
+                                <p class="text-sm text-gray-500">Download all tickets as JSON, CSV or XLSX</p>
                             </div>
                         </div>
-                        <button onclick="exportData('tickets')" class="w-full flex items-center justify-center px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
-                            <i data-lucide="download" class="w-4 h-4 mr-2"></i>
-                            Export Tickets
-                        </button>
+                        <div class="flex gap-2">
+                            <button onclick="exportData('tickets', 'json')" class="flex-1 flex items-center justify-center px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm">
+                                <i data-lucide="download" class="w-4 h-4 mr-1"></i>
+                                JSON
+                            </button>
+                            <button onclick="exportData('tickets', 'csv')" class="flex-1 flex items-center justify-center px-3 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition text-sm">
+                                <i data-lucide="file-spreadsheet" class="w-4 h-4 mr-1"></i>
+                                CSV
+                            </button>
+                            <button onclick="exportData('tickets', 'xlsx')" class="flex-1 flex items-center justify-center px-3 py-2 bg-green-700 text-white rounded-lg hover:bg-green-800 transition text-sm">
+                                <i data-lucide="file-spreadsheet" class="w-4 h-4 mr-1"></i>
+                                XLSX
+                            </button>
+                        </div>
                     </div>
 
                     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -249,7 +260,7 @@
                                 <p class="text-sm text-gray-500">Download cached emails as JSON</p>
                             </div>
                         </div>
-                        <button onclick="exportData('emails')" class="w-full flex items-center justify-center px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                        <button onclick="exportData('emails', 'json')" class="w-full flex items-center justify-center px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
                             <i data-lucide="download" class="w-4 h-4 mr-2"></i>
                             Export Emails
                         </button>
@@ -626,17 +637,51 @@
             }
         }
 
-        async function exportData(type) {
+        async function exportData(type, format = 'json') {
             try {
                 const ticketRes = await fetch('/database/ticket.json');
                 const tickets = await ticketRes.json();
                 
-                const blob = new Blob([JSON.stringify(tickets, null, 2)], {type: 'application/json'});
+                let blob, filename;
+                
+                if (format === 'xlsx') {
+                    const headers = ['ticket_number', 'shop', 'description', 'date', 'problem', 'resolve_time', 'ph_rm_os', 'solution', 'fu_action', 'handled_by', 'status'];
+                    const data = tickets.map(ticket => {
+                        const row = {};
+                        headers.forEach(h => row[h] = ticket[h] || '');
+                        return row;
+                    });
+                    const ws = XLSX.utils.json_to_sheet(data, { header: headers });
+                    const wb = XLSX.utils.book_new();
+                    XLSX.utils.book_append_sheet(wb, ws, 'Tickets');
+                    XLSX.writeFile(wb, 'tickets_export.xlsx');
+                    return;
+                } else if (format === 'csv') {
+                    const headers = ['ticket_number', 'shop', 'description', 'date', 'problem', 'resolve_time', 'ph_rm_os', 'solution', 'fu_action', 'handled_by', 'status'];
+                    const csvRows = [headers.join(',')];
+                    
+                    tickets.forEach(ticket => {
+                        const row = headers.map(header => {
+                            const value = ticket[header] || '';
+                            const escaped = String(value).replace(/"/g, '""');
+                            return `"${escaped}"`;
+                        });
+                        csvRows.push(row.join(','));
+                    });
+                    
+                    blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+                    filename = 'tickets_export.csv';
+                } else {
+                    blob = new Blob([JSON.stringify(tickets, null, 2)], { type: 'application/json' });
+                    filename = type === 'tickets' ? 'tickets_export.json' : 'emails_export.json';
+                }
+                
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = type === 'tickets' ? 'tickets_export.json' : 'emails_export.json';
+                a.download = filename;
                 a.click();
+                URL.revokeObjectURL(url);
             } catch (e) {
                 alert('Export failed: ' + e.message);
             }
